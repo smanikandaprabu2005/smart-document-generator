@@ -1,6 +1,6 @@
 # For Excel file support
 openpyxl
-
+docxtpl
 # Flask & Server
 Flask
 flask-cors
