@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: smart-document-generator
+    runtime: python
+    buildCommand: |
+      apt-get update
+      apt-get install -y libreoffice
+      pip install -r backend/requirements.txt
+    startCommand: cd backend && python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
