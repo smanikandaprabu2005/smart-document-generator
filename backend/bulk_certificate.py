@@ -5,6 +5,8 @@ import tempfile
 import openpyxl
 import re
 import uuid
+import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from flask import request, send_file, jsonify
 from utils.pdf_generator import create_document
 from db_utils import store_certificate
@@ -46,6 +48,48 @@ def extract_year_and_branch(name):
     return year, branch
 
 
+def generate_single_certificate(row, name):
+    """
+    Worker function to generate a single certificate.
+    Runs in parallel thread pool.
+    """
+    doc_id = str(uuid.uuid4())
+    year, branch = extract_year_and_branch(name)
+
+    placeholders = {
+        'name': name,
+        'event': row.get('Event') or row.get('Event Name', ''),
+        'date': row.get('date') or row.get('From Date', ''),
+        'role': row.get('Role') or 'presented',
+        'organizer': row.get('Club Name', ''),
+        'year': year,
+        'branch': branch,
+    }
+
+    template_path = os.path.join(
+        os.path.dirname(__file__),
+        'default_templates',
+        'certificate_template.docx'
+    )
+
+    pdf_buffer = create_document(
+        doc_type='certificate',
+        template_path=template_path,
+        placeholders=placeholders,
+        doc_id=doc_id
+    )
+
+    # Save PDF to temp file
+    temp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+    temp.write(pdf_buffer.read())
+    temp.close()
+
+    # Store certificate metadata in MongoDB
+    store_certificate(doc_id, name, row.get('Event', ''), row.get('Date', ''), row.get('Role', ''), 'certificate')
+
+    return temp.name
+
+
 def process_bulk_certificates():
     """
     Endpoint to handle bulk certificate generation from CSV or Excel file.
@@ -71,49 +115,25 @@ def process_bulk_certificates():
         return jsonify({'error': 'Unsupported file type'}), 400
 
     generated_files = []
+    # Collect all certificate generation tasks
+    tasks = []
     for row in rows:
-        # Assume participant names are in a column called 'Name', 'Names', or 'Recipient Name'
         names_field = row.get('Names') or row.get('Name') or row.get('Recipient Name') or row.get('Student Coordinators/Presenters')
         print('Row:', row)
         print('names_field:', names_field)
         if not names_field:
             continue
-        # Split names by comma or semicolon
         names = [n.strip() for n in re.split(r'[;,]', names_field) if n.strip()]
         print('names:', names)
+        # Add all (row, name) pairs to task list
         for name in names:
-            doc_id = str(uuid.uuid4())
-            year, branch = extract_year_and_branch(name)
-            placeholders = {
-                'name': name,
-                'event': row.get('Event') or row.get('Event Name', ''),
-                'date': row.get('date') or row.get('From Date', ''),
-                'role': row.get('Role') or 'presented',
-                'organizer': row.get('Club Name', ''),
-                'year': year,
-                'branch': branch,
-            }
-            template_path = os.path.join(
-                os.path.dirname(__file__),
-                'default_templates',
-                'certificate_template.docx'
-            )
-            pdf_buffer = create_document(
-                doc_type='certificate',
-                template_path=template_path,
-                placeholders=placeholders,
-                doc_id=doc_id
-            )
-            print('Generated pdf_buffer for', name, ':', pdf_buffer is not None)
-            # Store certificate info
-            store_certificate(doc_id, name, row.get('Event', ''), row.get('Date', ''), row.get('Role', ''), 'certificate')
-            # Save PDF to temp file
-            temp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
-            temp.write(pdf_buffer.read())
-            temp.close()
-            generated_files.append(temp.name)
+            tasks.append((row, name))
+    
+    # Generate certificates in parallel using ThreadPoolExecutor (8 workers)
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = executor.map(lambda x: generate_single_certificate(*x), tasks)
+        generated_files.extend(list(results))
     # Zip all PDFs
-    import zipfile
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zipf:
         for file_path in generated_files:

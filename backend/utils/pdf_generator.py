@@ -445,20 +445,88 @@ def fill_word(template_path, placeholders, doc_type, doc_id=None):
 # ========================
 # Convert DOCX → PDF (LibreOffice)
 # ========================
-def convert_docx_to_pdf_libreoffice(input_path, output_path):
-    command = (
-        f'"C:\\Program Files\\LibreOffice\\program\\soffice.exe" '
-        f'--headless --convert-to pdf "{input_path}" --outdir "{os.path.dirname(output_path)}"'
-    )
+import platform
 
-    subprocess.run(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+def convert_docx_to_pdf_libreoffice(input_path, output_path):
+    """Convert a .docx file to PDF using LibreOffice command-line.
+
+    This helper is cross-platform. On Windows it points to the typical
+    install location, while on Unix-like systems it assumes `soffice` is in
+    the PATH. If the executable cannot be found or the conversion fails a
+    ``RuntimeError`` is raised with a helpful message. When running on a
+    container platform such as Render the executable is often missing; callers
+    can catch the exception and fall back to a pure-Python converter.
+    """
+
+    output_dir = os.path.dirname(output_path)
+
+    # determine the command to invoke
+    if platform.system() == "Windows":
+        soffice = r"C:\Program Files\LibreOffice\program\soffice.exe"
+    else:
+        soffice = "soffice"  # assume it's available on Linux/Unix
+
+    command = f'{soffice} --headless --convert-to pdf "{input_path}" --outdir "{output_dir}"'
+
+    try:
+        subprocess.run(
+            shlex.split(command),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"LibreOffice executable '{soffice}' not found. "
+            "Install LibreOffice on the server or adjust the path."
+        )
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode(errors="ignore")
+        raise RuntimeError(f"PDF conversion failed: {stderr}")
 
     generated_pdf = input_path.replace(".docx", ".pdf")
 
     if not os.path.exists(generated_pdf):
-        raise RuntimeError("PDF conversion failed")
+        raise RuntimeError("PDF conversion failed - output file missing")
 
     os.rename(generated_pdf, output_path)
+
+
+def convert_docx_to_pdf_simple(input_path, output_path):
+    """Minimal pure‑Python converter using python-docx + reportlab.
+
+    This routine walks over paragraphs in the DOCX and places the text
+    sequentially in a PDF. It does **not** preserve complex styling or
+    images, but it allows the server to generate a file when LibreOffice
+    isn't available.  The intent is to provide a safety net for deployment
+    environments where installing LibreOffice is impractical.
+    """
+    try:
+        from docx import Document
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+    except ImportError as e:
+        raise RuntimeError("Required libraries for simple PDF conversion are missing: "
+                           f"{e}")
+
+    doc = Document(input_path)
+    c = canvas.Canvas(output_path, pagesize=letter)
+    width, height = letter
+    y = height - 72
+    line_height = 14
+
+    for para in doc.paragraphs:
+        text = para.text
+        if not text:
+            y -= line_height
+            continue
+        c.drawString(72, y, text)
+        y -= line_height
+        if y < 72:
+            c.showPage()
+            y = height - 72
+    c.save()
 
 
 
@@ -478,7 +546,17 @@ def create_document(doc_type, prompt=None, template_path=None, placeholders=None
         doc = fill_word(template_path, placeholders, doc_type, doc_id)
         doc.save(docx_path)
 
-        convert_docx_to_pdf_libreoffice(docx_path, pdf_path)
+        # attempt to convert with LibreOffice; if it is unavailable fall back to
+        # the simple Python implementation so that the service remains usable
+        # on platforms like Render where installing LibreOffice is not
+        # feasible.
+        try:
+            convert_docx_to_pdf_libreoffice(docx_path, pdf_path)
+        except RuntimeError as e:
+            logger.warning(
+                "LibreOffice conversion failed (%s), falling back to simple PDF converter", e
+            )
+            convert_docx_to_pdf_simple(docx_path, pdf_path)
 
         buf = BytesIO()
         with open(pdf_path, "rb") as f:
