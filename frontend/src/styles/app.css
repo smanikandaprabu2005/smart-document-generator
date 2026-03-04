@@ -1,0 +1,21 @@
+/* Add your custom styles here */
+.container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  max-height: 100%;
+}
+
+/* Dropdown menu animation */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* You can add more custom styles as needed */

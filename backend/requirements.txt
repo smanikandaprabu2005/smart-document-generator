@@ -1,0 +1,27 @@
+# For Excel file support
+openpyxl
+
+# Flask & Server
+Flask
+flask-cors
+gunicorn
+
+# Database
+pymongo>=4.0
+
+# LLM APIs
+google-genai>=0.3.0
+groq>=0.4.1
+
+# Utilities
+openai
+reportlab
+qrcode
+pillow
+python-dotenv
+requests
+Werkzeug
+PyJWT
+
+# Document processing
+python-docx

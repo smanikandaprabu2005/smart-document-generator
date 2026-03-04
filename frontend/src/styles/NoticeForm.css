@@ -1,0 +1,94 @@
+.notice-form {
+  background: linear-gradient(145deg, #0f1624, #1b2430);
+  color: #f0f0f0;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 229, 255, 0.3);
+  width: 550px;
+  margin: 0rem auto;
+  animation: fadeIn 0.5s ease;
+}
+
+.notice-form h2 {
+  font-size: 1.8rem;
+  color: #00e5ff;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+
+.notice-form input,
+.notice-form textarea,
+.notice-form select {
+  width: 100%;
+  padding: 12px;
+  margin-top: 4px;
+  margin-bottom: 1.2rem;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  background: #222a35;
+  color: #fff;
+  font-size: 1rem;
+  transition: box-shadow 0.2s;
+}
+
+
+.notice-form select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: #222a35;
+  font-weight: 500;
+  cursor: pointer;
+  border: 2px solid #00e5ff44;
+  padding-right: 2.5rem;
+  position: relative;
+  z-index: 1;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%2300e5ff" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7.293 8.293a1 1 0 011.414 0L10 9.586l1.293-1.293a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1.2em;
+}
+
+.notice-form select:focus {
+  box-shadow: 0 0 0 2px #00e5ff99;
+  border-color: #00e5ff;
+}
+
+.button-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+.notice-form button.primary-btn {
+  background: #00e5ff;
+  color: #0f1624;
+  font-weight: bold;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.notice-form button.primary-btn:hover {
+  background: #02c7da;
+}
+.loading-spinner.small {
+  border: 5px solid #1a2235;
+  border-top: 5px solid #00e5ff;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.success-msg {
+  color: #00e5ff;
+  font-weight: 600;
+  margin-left: 1rem;
+}
