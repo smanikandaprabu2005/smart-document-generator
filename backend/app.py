@@ -191,6 +191,15 @@ def get_latest_template(doc_type):
 
 
 # =============================
+# Root Endpoint
+# =============================
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint for health checks and status."""
+    return jsonify({'status': 'API running', 'app': 'Smart Document Generator'}), 200
+
+
+# =============================
 # Health Check Endpoints
 # =============================
 @app.route('/health', methods=['GET'])
