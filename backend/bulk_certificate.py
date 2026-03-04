@@ -93,9 +93,14 @@ def process_bulk_certificates():
                 'year': year,
                 'branch': branch,
             }
+            template_path = os.path.join(
+                os.path.dirname(__file__),
+                'default_templates',
+                'certificate_template.docx'
+            )
             pdf_buffer = create_document(
                 doc_type='certificate',
-                template_path='certificate_template.docx',
+                template_path=template_path,
                 placeholders=placeholders,
                 doc_id=doc_id
             )

@@ -176,9 +176,8 @@ def upload_template():
         with open(saved_path, 'rb') as src, open(latest_path, 'wb') as dst:
             dst.write(src.read())
 
-        # Return relative path for client to use
-        rel_path = os.path.relpath(latest_path, start=os.getcwd())
-        return jsonify({'message': 'Uploaded', 'filename': rel_path}), 201
+        # Return only the filename for safer path resolution
+        return jsonify({'message': 'Uploaded', 'filename': f"{doc_type}_latest.docx"}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -221,9 +220,8 @@ def generate_document_endpoint():
     Generate a document (letter, certificate, circular, notice).
     Uses LLM with Gemini → Groq fallback for content generation.
     """
-    logger.info(f"Document generation requested: doc_type={request.get_json().get('docType')}")
-    
-    data = request.get_json()
+    data = request.get_json() or {}
+    logger.info(f"Document generation requested: doc_type={data.get('docType')}")
     doc_type = data.get("docType", "")
     
     # Validate input
@@ -245,10 +243,6 @@ def generate_document_endpoint():
     doc_id = str(uuid.uuid4())
 
     try:
-        # Handle bulk certificate upload (file)
-        if doc_type == "certificate" and request.content_type and request.content_type.startswith("multipart/form-data"):
-            return process_bulk_certificates()
-
         # Store certificate or notice info if applicable
         if doc_type == "certificate":
             store_certificate(doc_id, name1, event_name, date, role, doc_type)
@@ -290,7 +284,7 @@ def generate_document_endpoint():
             prompt = None
 
         # Use selected template if provided (for notice)
-        template_requested = data.get("template") or f"{doc_type}_template.docx"
+        template_requested = data.get("template") or f"default_templates/{doc_type}_template.docx"
 
         # Resolve template_requested to an actual file path.
         # Order of resolution:
