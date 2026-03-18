@@ -8,8 +8,8 @@ import uuid
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from flask import request, send_file, jsonify
-from utils.pdf_generator import create_document
-from db_utils import store_certificate
+from backend.utils.pdf_generator import create_document
+from backend.db_utils import store_certificate
 from datetime import datetime
 
 def extract_year_and_branch(name):

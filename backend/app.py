@@ -10,7 +10,7 @@ from bson import ObjectId
 from datetime import datetime
 from backend.utils.pdf_generator import create_document
 from backend.bulk_certificate import process_bulk_certificates
-from db_utils import (
+from backend.db_utils import (
     store_certificate, store_notice, init_collections,
     get_user_by_username, insert_user, get_user_by_id,
     get_all_users, update_user_by_id, delete_user_by_id,
