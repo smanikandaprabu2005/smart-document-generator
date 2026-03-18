@@ -4,7 +4,7 @@ FROM python:3.11
 RUN apt-get update && apt-get install -y libreoffice
 
 # Set working directory
-WORKDIR /app
+WORKDIR /app/backend
 
 # Copy project files
 COPY . .
