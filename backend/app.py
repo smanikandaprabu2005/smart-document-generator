@@ -8,7 +8,7 @@ from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from bson import ObjectId
 from datetime import datetime
-from utils.pdf_generator import create_document
+from backend.utils.pdf_generator import create_document
 from bulk_certificate import process_bulk_certificates
 from db_utils import (
     store_certificate, store_notice, init_collections,
