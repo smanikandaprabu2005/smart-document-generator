@@ -14,7 +14,7 @@ from PIL import Image
 
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Inches
-from utils.qr_generator import generate_qr
+from backend.utils.qr_generator import generate_qr
 from llm_client import get_llm_client
 
 logger = logging.getLogger(__name__)
