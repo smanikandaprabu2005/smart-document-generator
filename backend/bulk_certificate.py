@@ -8,6 +8,7 @@ import uuid
 import zipfile
 import logging
 import multiprocessing
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from flask import request, send_file, jsonify
 from backend.utils.pdf_generator import create_document
@@ -15,6 +16,9 @@ from backend.db_utils import store_certificate
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# LibreOffice is not thread-safe. Protect concurrent access.
+libreoffice_lock = threading.Lock()
 
 def extract_year_and_branch(name):
     match = re.search(r'\((\d{2})([A-Z]{3})\d+\)', name)
@@ -78,22 +82,26 @@ def generate_single_certificate(row, name):
         'certificate_template.docx'
     )
 
-    pdf_buffer = create_document(
-        doc_type='certificate',
-        template_path=template_path,
-        placeholders=placeholders,
-        doc_id=doc_id
-    )
+    # Generate PDF (LibreOffice is not thread-safe, lock around conversion)
+    with libreoffice_lock:
+        logger.info("🔒 LibreOffice conversion started for %s", name)
+        pdf_buffer = create_document(
+            doc_type='certificate',
+            template_path=template_path,
+            placeholders=placeholders,
+            doc_id=doc_id
+        )
 
-    # Save PDF to temp file
-    temp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
-    temp.write(pdf_buffer.read())
-    temp.close()
+    # Save PDF to a stable, human-readable temp filename
+    safe_name = re.sub(r'[^a-zA-Z0-9]', '_', name) or 'certificate'
+    temp_path = os.path.join(tempfile.gettempdir(), f"{safe_name}_{doc_id}.pdf")
+    with open(temp_path, 'wb') as temp_file:
+        temp_file.write(pdf_buffer.read())
 
     # Store certificate metadata in MongoDB
     store_certificate(doc_id, name, row.get('Event', ''), row.get('Date', ''), row.get('Role', ''), 'certificate')
 
-    return temp.name
+    return temp_path
 
 
 def process_bulk_certificates():
