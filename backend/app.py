@@ -365,7 +365,17 @@ def generate_document_endpoint():
 # =============================
 @app.route('/generate-bulk-certificates', methods=['POST'])
 def generate_bulk_certificates():
-    return process_bulk_certificates()
+    try:
+        logger.info("🔥 /generate-bulk-certificates request received")
+        result = process_bulk_certificates()
+        logger.info("✅ /generate-bulk-certificates processed successfully")
+        return result
+
+    except Exception as e:
+        logger.error("❌ /generate-bulk-certificates error", exc_info=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 # =============================
 # Verification Endpoint
