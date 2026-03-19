@@ -15,5 +15,9 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 # Expose port
 EXPOSE 10000
 
+# Ensure production environment for backend
+ENV ENV=prod
+ENV PORT=10000
+
 # Run app with gunicorn
 CMD ["gunicorn", "backend.app:app", "--bind", "0.0.0.0:10000", "--timeout", "120", "--workers", "1", "--threads", "2"]
