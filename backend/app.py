@@ -24,7 +24,7 @@ from werkzeug.utils import secure_filename
 import jwt
 import datetime as dt
 from functools import wraps
-from llm_client import check_llm_health
+from backend.llm_client import check_llm_health
 
 # =====================
 # Logging Setup
