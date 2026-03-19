@@ -314,7 +314,12 @@ def generate_document_endpoint():
             prompt = None
 
         # Use selected template if provided (for notice)
-        template_requested = data.get("template") or f"default_templates/{doc_type}_template.docx"
+        BASE_DIR = os.path.dirname(__file__)
+        template_requested = data.get("template") or os.path.join(
+            BASE_DIR,
+            "default_templates",
+            f"{doc_type}_template.docx"
+        )
 
         # Resolve template_requested to an actual file path.
         # Order of resolution:
