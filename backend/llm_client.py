@@ -77,24 +77,19 @@ class LLMClient:
         Returns:
             Generated text or None if all LLMs fail
         """
-        if self.groq_available:
-            result = self._try_groq(prompt, temperature, max_tokens)
-            if result is not None:
-                logger.info("Generated text using Groq (fallback)")
-                return result
         # Try Gemini first
         if self.gemini_available:
             result = self._try_gemini(prompt, temperature, max_tokens)
             if result is not None:
                 logger.info("Generated text using Gemini")
                 return result
-            
+
             if not use_fallback:
                 logger.warning("Gemini failed and fallback disabled")
                 return None
-            
+
             logger.warning("Gemini failed, falling back to Groq")
-        
+
         # Fallback to Groq
         if self.groq_available:
             result = self._try_groq(prompt, temperature, max_tokens)

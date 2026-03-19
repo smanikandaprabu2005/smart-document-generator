@@ -17,7 +17,7 @@ def get_db_connection():
     global _client, _db
     
     if _client is None:
-        _client = MongoClient(MONGO_URI)
+        _client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
         _db = _client[DB_NAME]
     
     return _db

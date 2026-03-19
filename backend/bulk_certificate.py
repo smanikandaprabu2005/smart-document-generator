@@ -6,11 +6,15 @@ import openpyxl
 import re
 import uuid
 import zipfile
+import logging
+import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
 from flask import request, send_file, jsonify
 from backend.utils.pdf_generator import create_document
 from backend.db_utils import store_certificate
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 def extract_year_and_branch(name):
     match = re.search(r'\((\d{2})([A-Z]{3})\d+\)', name)
@@ -49,12 +53,14 @@ def extract_year_and_branch(name):
 
 
 def generate_single_certificate(row, name):
-    """
-    Worker function to generate a single certificate.
+    """Worker function to generate a single certificate.
+
     Runs in parallel thread pool.
     """
     doc_id = str(uuid.uuid4())
     year, branch = extract_year_and_branch(name)
+
+    logger.info(f"Generating certificate for {name} (doc_id={doc_id})")
 
     placeholders = {
         'name': name,
@@ -103,14 +109,14 @@ def process_bulk_certificates():
         content = file.read().decode('utf-8')
         reader = csv.DictReader(io.StringIO(content))
         rows = list(reader)
-        print('Parsed CSV rows:', rows)
+        logger.info(f"Parsed {len(rows)} rows from CSV")
     elif filename.endswith('.xlsx'):
         wb = openpyxl.load_workbook(file)
         ws = wb.active
         rows = list(ws.iter_rows(values_only=True))
         headers = [str(h) for h in rows[0]]
         rows = [dict(zip(headers, row)) for row in rows[1:]]
-        print('Parsed Excel rows:', rows)
+        logger.info(f"Parsed {len(rows)} rows from Excel")
     else:
         return jsonify({'error': 'Unsupported file type'}), 400
 
@@ -119,20 +125,24 @@ def process_bulk_certificates():
     tasks = []
     for row in rows:
         names_field = row.get('Names') or row.get('Name') or row.get('Recipient Name') or row.get('Student Coordinators/Presenters')
-        print('Row:', row)
-        print('names_field:', names_field)
+        logger.debug(f"Row data: {row}")
+        logger.debug(f"names_field: {names_field}")
         if not names_field:
             continue
         names = [n.strip() for n in re.split(r'[;,]', names_field) if n.strip()]
-        print('names:', names)
+        logger.debug(f"Parsed names: {names}")
         # Add all (row, name) pairs to task list
         for name in names:
             tasks.append((row, name))
     
-    # Generate certificates in parallel using ThreadPoolExecutor (8 workers)
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        results = executor.map(lambda x: generate_single_certificate(*x), tasks)
-        generated_files.extend(list(results))
+    # Generate certificates in parallel using ThreadPoolExecutor
+    max_workers = min(4, multiprocessing.cpu_count())
+    logger.info(f"Using ThreadPoolExecutor with {max_workers} workers")
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for i, file_path in enumerate(executor.map(lambda x: generate_single_certificate(*x), tasks)):
+            logger.info(f"Processed certificate {i + 1}/{len(tasks)}: {file_path}")
+            generated_files.append(file_path)
     # Zip all PDFs
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zipf:

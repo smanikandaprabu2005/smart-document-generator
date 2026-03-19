@@ -47,25 +47,26 @@ app = Flask(__name__)
 ENV = os.getenv('ENV', 'dev')
 DEBUG = ENV == 'dev'  # Debug only in development
 
-logger.info(f"Starting Flask app in {ENV} mode (Debug: {DEBUG})")
-
-# CORS configuration
+# CORS configuration (single initialization)
 allowed_origins = os.getenv(
     'CORS_ORIGINS',
     'http://localhost:5173,http://localhost:5174'
 ).split(',')
 CORS(app, supports_credentials=True, origins=allowed_origins)
 
-# JWT Secret Key (use environment variable in production)
+# Security configuration
+if ENV == 'prod' and not os.getenv('JWT_SECRET_KEY'):
+    raise RuntimeError("JWT_SECRET_KEY must be set in production")
+
 app.config['SECRET_KEY'] = os.getenv(
     'JWT_SECRET_KEY',
-    'your-secret-key-change-this-in-production' if ENV == 'dev' else None
+    'dev-secret-change-this' if ENV == 'dev' else None
 )
 
-if not app.config['SECRET_KEY']:
-    logger.error("FATAL: JWT_SECRET_KEY not set in production!")
-    raise RuntimeError("JWT_SECRET_KEY must be set via environment variable")
+# Protect against large uploads
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
 
+logger.info(f"Starting Flask app in {ENV} mode (Debug: {DEBUG})")
 logger.info(f"LLM Status - Gemini: {bool(os.getenv('GEMINI_API_KEY'))}, Groq: {bool(os.getenv('GROQ_API_KEY'))}")
 
 # =====================
@@ -103,6 +104,17 @@ def token_required(f):
     return decorated_function
 
 # =============================
+# Helpers
+# =============================
+
+def is_strong_password(password: str) -> bool:
+    """Check password strength: at least 8 chars, one uppercase, one digit."""
+    if not password or not isinstance(password, str):
+        return False
+    return bool(re.match(r'^(?=.*[A-Z])(?=.*\d).{8,}$', password))
+
+
+# =============================
 # Database setup for collections
 # =============================
 def init_db():
@@ -115,10 +127,19 @@ def create_default_admin():
     try:
         # Check if admin user exists
         if not user_exists('admin'):
-            # Create default admin user
-            hashed_password = generate_password_hash('admin123')
+            # Use env var for default admin password
+            default_admin_password = os.getenv('DEFAULT_ADMIN_PASSWORD')
+
+            if ENV == 'prod' and not default_admin_password:
+                raise RuntimeError("DEFAULT_ADMIN_PASSWORD must be set in production")
+
+            if not default_admin_password:
+                default_admin_password = 'admin123'
+                logger.warning("Using default admin password (DEV ONLY). Set DEFAULT_ADMIN_PASSWORD to change this.")
+
+            hashed_password = generate_password_hash(default_admin_password)
             insert_user('admin', hashed_password, 'admin')
-            print("Default admin user created: username='admin', password='admin123'")
+            print(f"Default admin user created: username='admin', password='{default_admin_password}'")
     except Exception as e:
         print(f"Error creating default admin: {e}")
 
@@ -238,17 +259,17 @@ def generate_document_endpoint():
         logger.warning("Missing docType in request")
         return jsonify({'error': 'docType is required'}), 400
     
-    date = data.get("date", "")
-    sender_details = data.get("sender_details", "")
-    recipient_details = data.get("recipient_details", "")
-    role = data.get("role", "")
-    name1=data.get("Name1", "")
-    name2=data.get("Name2", " ")
-    purpose = data.get("purpose", "")
-    event_details = data.get("eventDetails", "")
-    title = data.get("Title", "")
-    venue = data.get("venue", "")
-    event_name = data.get("eventName", "")
+    date = str(data.get("date", "")).strip()
+    sender_details = str(data.get("sender_details", "")).strip()
+    recipient_details = str(data.get("recipient_details", "")).strip()
+    role = str(data.get("role", "")).strip()
+    name1 = str(data.get("Name1", "")).strip()
+    name2 = str(data.get("Name2", "")).strip()
+    purpose = str(data.get("purpose", "")).strip()
+    event_details = str(data.get("eventDetails", "")).strip()
+    title = str(data.get("Title", "")).strip()
+    venue = str(data.get("venue", "")).strip()
+    event_name = str(data.get("eventName", "")).strip()
     doc_id = str(uuid.uuid4())
 
     try:
@@ -297,31 +318,38 @@ def generate_document_endpoint():
 
         # Resolve template_requested to an actual file path.
         # Order of resolution:
-        # 1. If template_requested is an absolute path or exists as given, use it.
+        # 1. Absolute path or already valid relative path
         # 2. backend/uploaded_templates/<template_requested>
-        # 3. workspace templates/<template_requested>
-        # 4. fallback to template_requested (may raise later)
+        # 3. backend/default_templates/<template_requested> (recommended)
+        # 4. workspace/templates/<template_requested>
+        base_dir = os.path.dirname(__file__)
         template_path = None
-        # 1
+
+        # 1. Absolute or literal path
         if template_requested:
             if os.path.isabs(template_requested) and os.path.exists(template_requested):
                 template_path = template_requested
             elif os.path.exists(template_requested):
                 template_path = template_requested
 
-        # 2
-        backend_uploaded = os.path.join(os.path.dirname(__file__), 'uploaded_templates', template_requested)
+        # 2. Uploaded templates
+        backend_uploaded = os.path.join(base_dir, 'uploaded_templates', template_requested)
         if not template_path and os.path.exists(backend_uploaded):
             template_path = backend_uploaded
 
-        # 3
-        workspace_template = os.path.join(os.getcwd(), 'templates', template_requested)
+        # 3. Default templates shipped with the app
+        backend_default = os.path.join(base_dir, 'default_templates', os.path.basename(template_requested))
+        if not template_path and os.path.exists(backend_default):
+            template_path = backend_default
+
+        # 4. Workspace templates folder (for local dev)
+        workspace_template = os.path.join(base_dir, 'templates', template_requested)
         if not template_path and os.path.exists(workspace_template):
             template_path = workspace_template
 
-        # 4 fallback to requested string (will error later if invalid)
-        if not template_path:
-            template_path = template_requested
+        # Validate the final template path
+        if not template_path or not os.path.exists(template_path):
+            raise FileNotFoundError(f"Template not found: {template_requested}")
 
         logger.info(f"Using template: {template_path}")
         
@@ -430,14 +458,19 @@ def create_user(current_user_id):
     if not user or user['role'] != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
     
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role', 'user')
+    data = request.get_json() or {}
+    username = str(data.get('username', '')).strip()
+    password = str(data.get('password', '')).strip()
+    role = str(data.get('role', 'user')).strip() or 'user'
     
     if not username or not password:
         return jsonify({'error': 'Username and password are required'}), 400
-    
+
+    if not is_strong_password(password):
+        return jsonify({
+            'error': 'Password must be at least 8 characters, include an uppercase letter and a number.'
+        }), 400
+
     # Hash the password
     hashed_password = generate_password_hash(password)
     
@@ -538,15 +571,17 @@ def delete_user(current_user_id, user_id):
 @app.route('/reset-password', methods=['POST'])
 @token_required
 def reset_password(current_user_id):
-    data = request.get_json()
-    current_password = data.get('current_password')
-    new_password = data.get('new_password')
-    
+    data = request.get_json() or {}
+    current_password = str(data.get('current_password', '')).strip()
+    new_password = str(data.get('new_password', '')).strip()
+
     if not current_password or not new_password:
         return jsonify({'error': 'Current password and new password are required'}), 400
-    
-    if len(new_password) < 6:
-        return jsonify({'error': 'New password must be at least 6 characters long'}), 400
+
+    if not is_strong_password(new_password):
+        return jsonify({
+            'error': 'New password must be at least 8 characters, include an uppercase letter and a number.'
+        }), 400
     
     # Get current user info
     user = get_user_by_id(current_user_id)
