@@ -139,7 +139,7 @@ const intervalRef = useRef(null);
   }
 
   return (
-    <div className="app">
+    <div className={`app${selectedType ? ' app-form-view' : ''}`}>
       {/* Welcome message in top left corner */}
       <div className="welcome-message" style={{
         position: 'absolute',

@@ -23,6 +23,12 @@
   overflow: hidden;
 }
 
+.app.app-form-view {
+  min-height: 100vh;
+  height: auto;
+  overflow-y: auto;
+}
+
 .app-title {
   font-size: 2rem;
   color: #00e5ff;
