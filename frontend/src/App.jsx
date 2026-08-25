@@ -25,6 +25,17 @@ const App = () => {
   const [showUsers, setShowUsers] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+  const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+      setViewportHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Check authentication on app load
   useEffect(() => {
@@ -130,7 +141,7 @@ const intervalRef = useRef(null);
   return (
     <div className="app">
       {/* Welcome message in top left corner */}
-      <div style={{
+      <div className="welcome-message" style={{
         position: 'absolute',
         top: '1rem',
         left: '2rem',
@@ -144,7 +155,7 @@ const intervalRef = useRef(null);
       </div>
 
       {/* Three-dot menu and logout in top right corner */}
-      <div style={{
+      <div className="account-actions" style={{
         position: 'absolute',
         top: '1rem',
         right: '2rem',
@@ -316,7 +327,7 @@ const intervalRef = useRef(null);
         </button>
       </div>
 
-      <div style={{
+      <div className="title-container" style={{
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
@@ -350,7 +361,6 @@ const intervalRef = useRef(null);
             alignItems: 'center',
             justifyContent: 'flex-start',
             minHeight: 'calc(10vh - 120px)',
-            marginTop: 0,
             marginBottom: 0,
             position: 'relative',
             zIndex: 5,
@@ -358,18 +368,9 @@ const intervalRef = useRef(null);
           onMouseEnter={stopAutoSlide}
           onMouseLeave={startAutoSlide}
         >
-          <div
-            className="slider-track"
+          <div className="slider-track"
             style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: 980, // 2% smaller than 1000
-              height: 98,    // 2% smaller than 100
-              margin: '0 auto',
-              marginTop: 539, // 2% smaller than 550
-              marginBottom: 0,
-              transition: 'transform 0.7s cubic-bezier(.4,2,.6,1)',
-              display: 'block',
+              '--viewport-width': `${viewportWidth}px`,
             }}
           >
             {/* Show previous, current, and next cards in a circular (infinite) manner */}
@@ -381,18 +382,20 @@ const intervalRef = useRef(null);
               const angle = offset * 60; // -60deg (left), 0 (center), 60deg (right)
               const rad = (angle * Math.PI) / 180;
               // Responsive radii (smaller)
-              const radiusX = Math.min(409.6, window.innerWidth / 1.734); // 2% smaller than 520
-              const radiusY = 260.8; // 2% smaller than 260
+              const radiusX = Math.min(360, Math.max(110, viewportWidth * 0.28));
+              const radiusY = Math.min(220, Math.max(110, viewportWidth * 0.16));
               const x = Math.sin(rad) * radiusX;
-              const y = -Math.cos(rad) * radiusY;
+              // Keep the active card centered; only neighboring cards arc vertically.
+              // Keep every card below the heading; the carousel varies horizontally.
+              const y = 0;
               // Clamp card width for responsiveness (smaller)
               const isActive = offset === 0;
               const scale = isActive ? 1.254 : 1.0584; // 2% smaller than 1.28/1.08
               const z = isActive ? 2 : 1;
-              const cardMax = isActive ? 882 : 588; // 2% smaller than 900/600
-              const cardMin = isActive ? 411.6 : 254.8; // 2% smaller than 420/260
-              const cardWidth = Math.max(cardMin, Math.min(cardMax, window.innerWidth * 1.078 / 3)); // 2% smaller than 1.1
-              const cardHeight = isActive ? 509.6 : 333.2; // 2% smaller than 520/340
+              const cardMax = isActive ? 560 : 360;
+              const cardMin = isActive ? 220 : 160;
+              const cardWidth = Math.max(cardMin, Math.min(cardMax, viewportWidth * (isActive ? 0.62 : 0.42), viewportHeight * (isActive ? 0.76 : 0.5)));
+              const cardHeight = isActive ? Math.min(430, Math.max(300, viewportHeight * 0.54)) : Math.min(300, Math.max(220, viewportHeight * 0.4));
               // No effect styles
               const effectStyle = {};
               return (

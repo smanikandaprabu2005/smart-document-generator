@@ -11,13 +11,16 @@
   text-align: center;
   background: #0a0f1c;
   color: #fff;
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 2rem;
-  width: 197vh;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
+  overflow: hidden;
 }
 
 .app-title {
@@ -32,7 +35,7 @@
   margin-top: 3rem;
   position: relative;
   width: 100%;
-  max-width: 700px;
+  max-width: min(700px, 100%);
   overflow: visible;
   border-radius: 32px;
   box-shadow: 0 8px 40px 0 #00e5ff55, 0 8px 32px 0 #000a;
@@ -49,6 +52,8 @@
 }
 
 .slider-track {
+  position: relative;
+  display: block;
   display: flex;
   transition: transform 0.7s cubic-bezier(.4,2,.6,1);
   will-change: transform;
@@ -90,9 +95,9 @@
 }
 
 .card-icon {
-  width: 550px;
-  height: 300px;
-  margin: 50px auto 1rem;
+  width: min(550px, 82%);
+  height: clamp(150px, 24vw, 300px);
+  margin: 1rem auto;
   border-radius: 50%;
   background: rgba(0, 229, 255, 0.15);
   display: flex;
@@ -211,7 +216,8 @@
   background: linear-gradient(135deg, #1a2235 60%, #00e5ff22 100%);
   padding: 2.5rem 2rem 2rem 2rem;
   border-radius: 30px;
-  width: 95%;
+  width: min(95%, 650px);
+  max-width: 100%;
   max-width: 650px;
   box-shadow: 0 0 40px 0 #00e5ff44, 0 8px 32px 0 #000a;
   animation: fadeIn 0.6s cubic-bezier(.4,2,.6,1);
@@ -371,7 +377,85 @@
     margin: 0 3px;
   }
   .form-container {
-    max-width: 100vw;
+    width: 100%;
     padding: 0.5rem;
+  }
+}
+
+/* Keep the viewport controls and carousel stage inside the available width. */
+.welcome-message {
+  left: clamp(0.75rem, 4vw, 2rem) !important;
+  max-width: calc(100% - 8rem);
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.account-actions {
+  right: clamp(0.5rem, 4vw, 2rem) !important;
+  gap: clamp(0.25rem, 2vw, 1rem) !important;
+}
+
+.title-container {
+  width: 100%;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem !important;
+  padding-inline: clamp(0.5rem, 8vw, 2rem) !important;
+}
+
+.title-container .app-title {
+  font-size: clamp(1.35rem, 4vw, 2.5rem) !important;
+  overflow-wrap: anywhere;
+}
+
+.slider-container {
+  width: min(100%, 700px);
+  min-height: 0 !important;
+  margin-top: clamp(1rem, 3vh, 2rem) !important;
+  top: clamp(8px, 1.5vh, 16px);
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.slider-track {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: min(430px, 54vh) !important;
+  margin: 0 auto !important;
+  flex: 0 1 auto;
+  display: block;
+}
+
+.card.slide {
+  max-width: min(92vw, 680px) !important;
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 0.75rem;
+  }
+
+  .welcome-message {
+    font-size: 1rem !important;
+    max-width: calc(100% - 7rem);
+  }
+
+  .account-actions button {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0.25rem !important;
+  }
+
+  .slider-container {
+    min-height: 0 !important;
+  }
+
+  .slider-track {
+    height: min(380px, 58vh) !important;
+  }
+
+  .card-icon {
+    width: min(82%, 280px);
+    height: clamp(130px, 38vw, 220px);
   }
 }
